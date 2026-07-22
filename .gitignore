@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.DS_Store
+.venv/
+
+input/*
+output/*
+processed/*
+failed/*
+data/process_state.json
+data/process_state.json.tmp
+
+!input/.gitkeep
+!output/.gitkeep
+!processed/.gitkeep
+!failed/.gitkeep

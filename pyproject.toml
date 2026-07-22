@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pixel-reforge-pipeline"
+version = "0.1.0"
+description = "用于还原干净、网格对齐像素图的批处理流水线"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "perfect-pixel[opencv]>=0.1.4",
+]
+
+[project.scripts]
+pixel-reforge = "pixel_reforge.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pixel_reforge*"]
