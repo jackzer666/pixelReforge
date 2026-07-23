@@ -1,8 +1,19 @@
-# PixelReforge MCP and Codex Integration
+# PixelReforge MCP, Codex, and Claude Code Integration
 
 [中文](mcp.md) | [Back to English README](../README.en.md)
 
-PixelReforge provides a local STDIO MCP server so Codex and other MCP-compatible clients can process images in `input/` directly.
+PixelReforge provides a local STDIO MCP server so Codex, Claude Code, and other MCP-compatible clients can process images in `input/` directly.
+
+## Verified Client Versions
+
+The configuration commands in this guide were verified on 2026-07-23 with:
+
+| Client | Version |
+| --- | --- |
+| Codex CLI | `codex-cli 0.144.1` |
+| Claude Code | `2.1.79` |
+
+Run `codex --version` and `claude --version` to check local versions. Options may differ in other releases; use `codex mcp add --help` or `claude mcp add --help` when the local CLI behaves differently.
 
 ## Start the MCP Server
 
@@ -38,7 +49,9 @@ Image processing runs serially in a dedicated worker process, preventing ordinar
 
 ## Configure Globally in Codex
 
-The following steps register the server in the current user's global Codex configuration. User-level configuration lives in `~/.codex/config.toml`; see the [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml).
+[![Codex CLI](https://img.shields.io/badge/Codex%20CLI-verified%200.144.1-000000?logo=openai&logoColor=white)](https://learn.chatgpt.com/docs/extend/mcp)
+
+The following steps were verified with `codex-cli 0.144.1` and register the server in the current user's global Codex configuration. User-level configuration lives in `~/.codex/config.toml`; see the [official Codex MCP guide](https://learn.chatgpt.com/docs/extend/mcp) and [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml).
 
 1. Confirm that the MCP entry point is installed:
 
@@ -82,9 +95,52 @@ The following steps register the server in the current user's global Codex confi
 
 5. Restart Codex or open a new session to reload the MCP connection and tool schema.
 
+## Configure Globally in Claude Code
+
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-verified%202.1.79-D97757?logo=anthropic&logoColor=white)](https://code.claude.com/docs/en/mcp)
+
+The following steps were verified on macOS with Claude Code `2.1.79`. Claude Code's `user` scope is the current user's global scope, stored in `~/.claude.json` and available across that user's projects. See the [official Claude Code MCP guide](https://code.claude.com/docs/en/mcp) for scope and STDIO details.
+
+1. Confirm that the MCP entry point is installed:
+
+   ```bash
+   test -x .venv/bin/pixel-reforge-mcp \
+     && echo "pixel-reforge-mcp is ready"
+   ```
+
+2. Check for an existing server with the same name:
+
+   ```bash
+   claude mcp get pixel_reforge
+   claude mcp list
+   ```
+
+3. Replace `<project-root>` with the absolute PixelReforge project path, then add the user-scoped STDIO server:
+
+   ```bash
+   claude mcp add \
+     --transport stdio \
+     --scope user \
+     pixel_reforge \
+     -- /usr/bin/env \
+     "PIXEL_REFORGE_ROOT=<project-root>" \
+     "<project-root>/.venv/bin/pixel-reforge-mcp"
+   ```
+
+   Passing `PIXEL_REFORGE_ROOT` through `/usr/bin/env` is the form verified with Claude Code `2.1.79`. It also avoids the variadic `--env` option interfering with parsing the server name and launch command.
+
+4. Verify the configuration Claude Code loads:
+
+   ```bash
+   claude mcp get pixel_reforge
+   claude mcp list
+   ```
+
+5. Restart Claude Code or open a new session, then run `/mcp` inside the session. A working setup should show the `pixel_reforge` server and its `reforge_image` tool.
+
 ## Invocation Example
 
-Ask Codex:
+Ask Codex or Claude Code:
 
 ```text
 Use pixel_reforge to process input/character.png. You must call reforge_image
@@ -110,7 +166,7 @@ The corresponding tool arguments are:
 
 ## From AI Generation to Pixel Reforging
 
-After configuration, Codex can connect image generation, local file saving, and MCP processing. Replace `<project-root>` with the absolute project path:
+After configuration, Codex or Claude Code can connect image generation, local file saving, and MCP processing. Replace `<project-root>` with the absolute project path:
 
 ```text
 Complete the following task directly:
@@ -138,4 +194,4 @@ Do not guess output paths from filename conventions. Report the real error if
 processing fails.
 ```
 
-If the current Codex interface cannot continue from image generation to an MCP call in the same turn, split the workflow into two turns: first generate and save the file in `input/`, then explicitly invoke `reforge_image` with its relative path.
+If the current client cannot continue from image generation to an MCP call in the same turn, split the workflow into two turns: first generate and save the file in `input/`, then explicitly invoke `reforge_image` with its relative path.

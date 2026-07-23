@@ -72,14 +72,14 @@ uv run pixel-reforge --pixel-mode source
 PIXEL_REFORGE_ROOT=/path/to/pixelReforge uv run pixel-reforge-mcp
 ```
 
-MCP Server 暴露 `reforge_image` 写工具，可让 Codex 等客户端处理 `input/` 中的图片，并返回真实处理状态和输出路径。
+MCP Server 暴露 `reforge_image` 写工具，可让 Codex、Claude Code 等客户端处理 `input/` 中的图片，并返回真实处理状态和输出路径。
 
-完整参数、Codex 全局配置和 AI 生成到像素重铸的提示词示例，请参阅 [MCP 与 Codex 集成指南](docs/mcp.md)。
+完整参数、Codex 与 Claude Code 全局配置，以及 AI 生成到像素重铸的提示词示例，请参阅 [MCP、Codex 与 Claude Code 集成指南](docs/mcp.md)。
 
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
 | [CLI 使用指南](docs/cli.md) | 安装、常用命令、完整参数、处理流程和输出约定 |
-| [MCP 与 Codex 集成](docs/mcp.md) | MCP 工具参数、Codex 配置和调用示例 |
+| [MCP、Codex 与 Claude Code 集成](docs/mcp.md) | MCP 工具参数、客户端版本、全局配置和调用示例 |
 | [开发指南](docs/development.md) | 项目结构、测试和依赖管理 |

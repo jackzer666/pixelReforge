@@ -72,14 +72,14 @@ Start the local STDIO MCP server:
 PIXEL_REFORGE_ROOT=/path/to/pixelReforge uv run pixel-reforge-mcp
 ```
 
-The server exposes the `reforge_image` write tool, allowing Codex and other clients to process images in `input/` and receive actual task status and output paths.
+The server exposes the `reforge_image` write tool, allowing Codex, Claude Code, and other clients to process images in `input/` and receive actual task status and output paths.
 
-For complete arguments, global Codex configuration, and an AI-generation-to-reforging prompt, see the [MCP and Codex integration guide](docs/mcp.en.md).
+For complete arguments, global Codex and Claude Code configuration, and an AI-generation-to-reforging prompt, see the [MCP, Codex, and Claude Code integration guide](docs/mcp.en.md).
 
 ## Documentation
 
 | Document | Contents |
 | --- | --- |
 | [CLI guide](docs/cli.en.md) | Installation, common commands, complete options, processing, and outputs |
-| [MCP and Codex integration](docs/mcp.en.md) | MCP tool arguments, Codex configuration, and invocation examples |
+| [MCP, Codex, and Claude Code integration](docs/mcp.en.md) | MCP arguments, client versions, global configuration, and invocation examples |
 | [Development guide](docs/development.en.md) | Project layout, testing, and dependency management |
