@@ -1,5 +1,9 @@
 # PixelReforge Pipeline（像素重铸流水线）
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![MCP](https://img.shields.io/badge/MCP-STDIO-6A5ACD.svg)](#mcp-server)
+[![uv](https://img.shields.io/badge/package%20manager-uv-DE5FE9.svg)](https://docs.astral.sh/uv/)
+
 [简体中文](README.md) | [English](README.en.md)
 
 > 面向清晰、网格规整像素图重构的 CLI 与 MCP 批处理流水线。
