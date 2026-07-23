@@ -129,11 +129,17 @@ The `--force` option ignores existing successful records and regenerates the out
 | `--output-dir PATH` | Write generated images to a specific directory | `output/` |
 | `--retry-failed` | Retry images stored in `failed/` | Disabled |
 | `--scale INTEGER` | Set the preview scale factor; minimum value is 2 | `8` |
+| `--pixel-mode {detect,source}` | Detect the logical pixel grid or treat every input pixel as `1×1` | `detect` |
 | `--force` | Ignore existing successful records and process again | Disabled |
 | `--recursive` | Recursively scan input subdirectories | Disabled |
 | `-h`, `--help` | Display command help | — |
 
 `--file`, `--input-dir`, and `--retry-failed` are mutually exclusive input modes. Only one may be selected for each invocation.
+
+`--pixel-mode detect` uses `perfect-pixel` to detect and reconstruct the logical
+pixel grid. `--pixel-mode source` skips grid detection: the `1x` output has the
+same dimensions as the input, and each preview dimension is multiplied by
+`--scale`.
 
 ## Processing Workflow
 
@@ -243,6 +249,7 @@ The server exposes one write tool, `reforge_image`:
 | --- | --- | --- |
 | `source_path` | Image path relative to the project `input/` directory | Required |
 | `scale` | Preview scale factor; minimum value is 2 | `8` |
+| `pixel_mode` | `detect` the grid or treat each source pixel as `1×1` with `source` | `detect` |
 | `sample_method` | `center` or `majority` | `center` |
 | `refine_intensity` | Grid refinement strength from 0 to 1 | `0.3` |
 | `force` | Ignore an existing successful record | `false` |
@@ -321,8 +328,9 @@ for the supported fields.
    tool schema. You can then ask:
 
    ```text
-   Use pixel_reforge to process input/character.png with a scale of 8, then
-   report the absolute paths of both output files.
+   Use pixel_reforge to process input/character.png. You must call
+   reforge_image with pixel_mode set to detect and a scale of 8, then report
+   the absolute paths of both output files.
    ```
 
    The actual MCP `source_path` must be `character.png`, relative to `input/`,
@@ -362,6 +370,7 @@ Complete the following task directly. Do not only describe the steps:
    {
      "source_path": "codex_generated_pixel_art.png",
      "scale": 8,
+     "pixel_mode": "detect",
      "sample_method": "center",
      "refine_intensity": 0.3,
      "force": true,
@@ -412,6 +421,7 @@ Use these arguments:
 {
   "source_path": "codex_generated_pixel_art.png",
   "scale": 8,
+  "pixel_mode": "detect",
   "sample_method": "center",
   "refine_intensity": 0.3,
   "force": true,

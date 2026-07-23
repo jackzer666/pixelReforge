@@ -145,6 +145,8 @@ def create_server(
         name="reforge_image",
         description=(
             "重铸 input 目录中的一张图片，生成原始像素图和放大预览图。"
+            "pixel_mode=detect 时自动检测逻辑像素网格；pixel_mode=source 时"
+            "将每个输入像素直接作为一个 1×1 逻辑像素。"
             "该工具会写入 output 目录和处理状态；archive_source=true 时会"
             "把成功原图移动到 processed，或把失败原图移动到 failed。"
         ),
@@ -159,6 +161,7 @@ def create_server(
     async def reforge_image(
         source_path: str,
         scale: int = 8,
+        pixel_mode: Literal["detect", "source"] = "detect",
         sample_method: Literal["center", "majority"] = "center",
         refine_intensity: float = 0.3,
         force: bool = False,
@@ -171,6 +174,7 @@ def create_server(
             config = replace(
                 AppConfig.defaults(root),
                 scale=scale,
+                pixel_mode=pixel_mode,
                 sample_method=sample_method,
                 refine_intensity=refine_intensity,
             )

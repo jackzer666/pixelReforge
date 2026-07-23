@@ -73,6 +73,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             {
                 "source_path",
                 "scale",
+                "pixel_mode",
                 "sample_method",
                 "refine_intensity",
                 "force",
@@ -80,6 +81,15 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             },
         )
         self.assertEqual(tool.inputSchema["required"], ["source_path"])
+        self.assertEqual(
+            tool.inputSchema["properties"]["pixel_mode"],
+            {
+                "default": "detect",
+                "enum": ["detect", "source"],
+                "title": "Pixel Mode",
+                "type": "string",
+            },
+        )
 
     async def test_reforge_image_wraps_existing_process_result(self) -> None:
         worker = FakeWorker()
@@ -90,6 +100,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             {
                 "source_path": "hero.png",
                 "scale": 4,
+                "pixel_mode": "source",
                 "sample_method": "majority",
                 "refine_intensity": 0.5,
                 "force": True,
@@ -109,6 +120,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             resolved_root / "data" / "process_state.json",
         )
         self.assertEqual(config.scale, 4)
+        self.assertEqual(config.pixel_mode, "source")
         self.assertEqual(config.sample_method, "majority")
         self.assertEqual(config.refine_intensity, 0.5)
         self.assertTrue(force)
@@ -128,6 +140,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertFalse(worker.calls[0][3])
+        self.assertEqual(worker.calls[0][1].pixel_mode, "detect")
 
     async def test_failed_domain_result_remains_a_normal_tool_result(self) -> None:
         server = create_server(project_root=self.root, worker=FakeWorker("failed"))

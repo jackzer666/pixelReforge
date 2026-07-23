@@ -176,6 +176,7 @@ def process_one(
         processed = process_image(
             source,
             scale=config.scale,
+            pixel_mode=config.pixel_mode,
             sample_method=config.sample_method,
             refine_intensity=config.refine_intensity,
         )

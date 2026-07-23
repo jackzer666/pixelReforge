@@ -24,6 +24,7 @@ class AppConfig:
     failed_dir: Path
     state_file: Path
     scale: int = 8
+    pixel_mode: str = "detect"
     sample_method: str = "center"
     refine_intensity: float = 0.3
     recursive: bool = False
@@ -33,6 +34,8 @@ class AppConfig:
 
         if self.scale < 2:
             raise ValueError("放大倍数必须大于或等于 2。")
+        if self.pixel_mode not in {"detect", "source"}:
+            raise ValueError("像素模式只能是 detect 或 source。")
         if self.sample_method not in {"center", "majority"}:
             raise ValueError("取样方式只能是 center 或 majority。")
         if not 0 <= self.refine_intensity <= 1:
@@ -81,6 +84,7 @@ class AppConfig:
         return {
             "processor_version": 1,
             "perfect_pixel_version": PERFECT_PIXEL_VERSION,
+            "pixel_mode": self.pixel_mode,
             "sample_method": self.sample_method,
             "refine_intensity": self.refine_intensity,
             "scale": self.scale,

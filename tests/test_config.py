@@ -29,6 +29,15 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "大于或等于 2"):
                 replace(config, scale=1)
 
+    def test_pixel_mode_must_be_supported(self) -> None:
+        """像素模式只能选择自动检测或直接使用输入像素。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            config = AppConfig.defaults(Path(temporary))
+
+            with self.assertRaisesRegex(ValueError, "detect 或 source"):
+                replace(config, pixel_mode="unknown")
+
     def test_processing_parameters_include_dependency_version(self) -> None:
         """任务指纹参数必须包含 perfect-pixel 版本。"""
 
@@ -36,6 +45,7 @@ class ConfigTests(unittest.TestCase):
             config = AppConfig.defaults(Path(temporary))
 
             self.assertIn("perfect_pixel_version", config.processing_parameters())
+            self.assertEqual(config.processing_parameters()["pixel_mode"], "detect")
 
 
 if __name__ == "__main__":

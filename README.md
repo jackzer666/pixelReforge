@@ -128,11 +128,16 @@ uv run pixel-reforge --force
 | `--output-dir PATH` | 将生成图片写入指定目录 | `output/` |
 | `--retry-failed` | 重新处理 `failed/` 中的图片 | 关闭 |
 | `--scale INTEGER` | 设置预览图放大倍数，最小值为 2 | `8` |
+| `--pixel-mode {detect,source}` | 自动检测逻辑像素网格，或将每个输入像素按 `1×1` 使用 | `detect` |
 | `--force` | 忽略已有成功记录并重新处理 | 关闭 |
 | `--recursive` | 递归扫描输入目录的子目录 | 关闭 |
 | `-h`、`--help` | 显示命令帮助 | — |
 
 `--file`、`--input-dir` 和 `--retry-failed` 是互斥的输入模式，单次运行只能选择其中一种。
+
+`--pixel-mode detect` 使用 `perfect-pixel` 自动检测并重建逻辑像素网格。
+`--pixel-mode source` 跳过网格检测，此时 `1x` 输出与输入图片尺寸相同，
+预览图宽高分别等于输入宽高乘以 `--scale`。
 
 ## 处理流程
 
@@ -242,6 +247,7 @@ MCP Server 只暴露一个写工具 `reforge_image`：
 | --- | --- | --- |
 | `source_path` | 相对于项目 `input/` 的图片路径 | 必填 |
 | `scale` | 预览图放大倍数，最小值为 2 | `8` |
+| `pixel_mode` | `detect` 自动检测网格；`source` 按输入像素 `1×1` 处理 | `detect` |
 | `sample_method` | `center` 或 `majority` | `center` |
 | `refine_intensity` | 网格修正强度，范围为 0 到 1 | `0.3` |
 | `force` | 是否忽略已有成功记录 | `false` |
@@ -315,8 +321,9 @@ Codex 的用户级配置文件位于 `~/.codex/config.toml`；可用字段参见
 6. 重启 Codex 或新开会话，使 MCP 连接和工具 Schema 重新加载。之后可以要求：
 
    ```text
-   使用 pixel_reforge 处理 input/character.png，放大倍数设为 8，
-   完成后告诉我两个输出文件的绝对路径。
+   使用 pixel_reforge 处理 input/character.png。必须调用 reforge_image，
+   pixel_mode 设为 detect，放大倍数设为 8，完成后告诉我两个输出文件的
+   绝对路径。
    ```
 
    MCP 实际收到的 `source_path` 应为相对于 `input/` 的
@@ -352,6 +359,7 @@ Codex 的用户级配置文件位于 `~/.codex/config.toml`；可用字段参见
    {
      "source_path": "codex_generated_pixel_art.png",
      "scale": 8,
+     "pixel_mode": "detect",
      "sample_method": "center",
      "refine_intensity": 0.3,
      "force": true,
@@ -399,6 +407,7 @@ outputs。若处理失败，请返回真实错误，不要声称已经成功。
 {
   "source_path": "codex_generated_pixel_art.png",
   "scale": 8,
+  "pixel_mode": "detect",
   "sample_method": "center",
   "refine_intensity": 0.3,
   "force": true,

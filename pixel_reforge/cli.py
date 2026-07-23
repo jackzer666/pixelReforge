@@ -36,6 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output-dir", type=Path, help="指定输出目录")
     parser.add_argument("--scale", type=_positive_scale, default=8, help="预览图放大倍数")
+    parser.add_argument(
+        "--pixel-mode",
+        choices=("detect", "source"),
+        default="detect",
+        help="像素模式：detect 自动检测网格，source 将输入像素按 1×1 使用",
+    )
     parser.add_argument("--force", action="store_true", help="强制重新处理")
     parser.add_argument("--recursive", action="store_true", help="递归扫描子目录")
     return parser
@@ -83,7 +89,12 @@ def main(argv: list[str] | None = None) -> int:
             config = replace(config, input_dir=_resolve_user_path(args.input_dir))
         if args.output_dir:
             config = replace(config, output_dir=_resolve_user_path(args.output_dir))
-        config = replace(config, scale=args.scale, recursive=args.recursive)
+        config = replace(
+            config,
+            scale=args.scale,
+            pixel_mode=args.pixel_mode,
+            recursive=args.recursive,
+        )
 
         started_at = monotonic()
         if args.file:

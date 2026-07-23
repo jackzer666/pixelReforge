@@ -58,6 +58,7 @@ class StdioTests(unittest.IsolatedAsyncioTestCase):
                         {
                             "source_path": "pixel-art.png",
                             "scale": 2,
+                            "pixel_mode": "source",
                         },
                     )
                     after = await session.list_tools()
@@ -67,8 +68,17 @@ class StdioTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(result.structuredContent["outputs"]), 2)
             self.assertFalse(source.exists())
             self.assertTrue((root / "processed" / source.name).is_file())
-            for output in result.structuredContent["outputs"]:
-                self.assertTrue(Path(output).is_file())
+            output_paths = [
+                Path(output) for output in result.structuredContent["outputs"]
+            ]
+            for output in output_paths:
+                self.assertTrue(output.is_file())
+            original = cv2.imread(str(output_paths[0]))
+            preview = cv2.imread(str(output_paths[1]))
+            self.assertIsNotNone(original)
+            self.assertIsNotNone(preview)
+            self.assertEqual(original.shape[:2], (64, 64))
+            self.assertEqual(preview.shape[:2], (128, 128))
             self.assertEqual([tool.name for tool in before.tools], ["reforge_image"])
             self.assertEqual([tool.name for tool in after.tools], ["reforge_image"])
 

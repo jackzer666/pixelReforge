@@ -18,6 +18,7 @@ def process_image(
     source: Path,
     *,
     scale: int,
+    pixel_mode: str,
     sample_method: str,
     refine_intensity: float,
 ) -> ProcessedImage:
@@ -29,6 +30,22 @@ def process_image(
     bgr = cv2.imread(str(source), cv2.IMREAD_COLOR)
     if bgr is None:
         raise ImageProcessingError(f"无法解析图片，请检查文件是否损坏：{source}")
+
+    if pixel_mode == "source":
+        height, width = bgr.shape[:2]
+        scaled = cv2.resize(
+            bgr,
+            (width * scale, height * scale),
+            interpolation=cv2.INTER_NEAREST,
+        )
+        return ProcessedImage(
+            width=width,
+            height=height,
+            original=bgr,
+            scaled=scaled,
+        )
+    if pixel_mode != "detect":
+        raise ImageProcessingError(f"不支持的像素模式：{pixel_mode}")
 
     # OpenCV 读取结果是 BGR，而 perfect-pixel 算法要求 RGB。
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
