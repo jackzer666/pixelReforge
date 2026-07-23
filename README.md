@@ -2,14 +2,15 @@
 
 [简体中文](README.md) | [English](README.en.md)
 
-> 面向清晰、网格规整像素图重构的批处理流水线。
+> 面向清晰、网格规整像素图重构的 CLI 与 MCP 批处理流水线。
 
-PixelReforge 是一套面向像素图规整与批量归档的命令行处理流水线。项目基于 [perfect-pixel](https://github.com/theamusing/perfectPixel) 检测并重建像素网格，同时提供内容去重、状态记录、失败隔离和原图归档等批处理能力。
+PixelReforge 是一套面向像素图规整与批量归档的处理流水线，支持命令行调用和本地 STDIO MCP 集成。项目基于 [perfect-pixel](https://github.com/theamusing/perfectPixel) 检测并重建像素网格，并通过 `reforge_image` 工具让 Codex 等兼容 MCP 的客户端直接处理图片，同时提供内容去重、状态记录、失败隔离和原图归档等批处理能力。
 
 ## 功能概览
 
 - 支持 PNG、JPG、JPEG、WEBP 和 BMP 图片；
 - 支持目录批处理、单图处理和子目录递归扫描；
+- 提供本地 STDIO MCP Server，可由 Codex 等兼容客户端调用 `reforge_image` 完成单图处理与可选归档；
 - 同时生成原始尺寸像素图与最近邻放大的预览图；
 - 根据图片内容和处理参数识别重复任务，避免无效重复处理；
 - 成功与失败任务分别归档，单张图片异常不会中断整个批次；

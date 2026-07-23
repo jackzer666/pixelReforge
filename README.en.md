@@ -3,14 +3,15 @@
 [简体中文](README.md) | [English](README.en.md)
 
 > **PixelReforge**  
-> A batch pipeline for restoring clean, grid-aligned pixel art.
+> A CLI and MCP batch pipeline for restoring clean, grid-aligned pixel art.
 
-PixelReforge is a command-line pipeline for refining pixel art and organizing batch-processing results. Built on [perfect-pixel](https://github.com/theamusing/perfectPixel), it detects and reconstructs pixel grids while providing content-based deduplication, persistent state tracking, failure isolation, and source-file archiving.
+PixelReforge is a pipeline for refining pixel art and organizing batch-processing results through both a command-line interface and a local STDIO MCP integration. Built on [perfect-pixel](https://github.com/theamusing/perfectPixel), it detects and reconstructs pixel grids, exposes the `reforge_image` tool to Codex and other MCP-compatible clients, and provides content-based deduplication, persistent state tracking, failure isolation, and source-file archiving.
 
 ## Features
 
 - Supports PNG, JPG, JPEG, WEBP, and BMP images;
 - Processes entire directories, individual files, or nested directory trees;
+- Provides a local STDIO MCP server whose `reforge_image` tool supports single-image processing and optional archiving from Codex and other compatible clients;
 - Produces both a native-resolution pixel image and a nearest-neighbor enlarged preview;
 - Identifies duplicate tasks from image content and processing parameters;
 - Archives successful and failed inputs separately without allowing one failure to interrupt the batch;
