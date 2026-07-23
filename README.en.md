@@ -167,6 +167,7 @@ source_YYYYMMDD_HHMMSS_microseconds_8x.png
 
 ```text
 pixel_reforge/             Python source package
+pixel_reforge/mcp_adapter/ MCP STDIO adapter
 tests/                     Automated tests
 input/                     Default input directory
 output/                    Generated output directory
@@ -227,3 +228,197 @@ uv sync
 
 - [perfect-pixel](https://github.com/theamusing/perfectPixel): detects and refines pixel grids;
 - [OpenCV](https://opencv.org/): reads images, converts color spaces, scales results, and writes output files.
+
+## MCP Server
+
+The project provides a local STDIO MCP entry point:
+
+```bash
+PIXEL_REFORGE_ROOT=/path/to/pixelReforge uv run pixel-reforge-mcp
+```
+
+The server exposes one write tool, `reforge_image`:
+
+| Argument | Description | Default |
+| --- | --- | --- |
+| `source_path` | Image path relative to the project `input/` directory | Required |
+| `scale` | Preview scale factor; minimum value is 2 | `8` |
+| `sample_method` | `center` or `majority` | `center` |
+| `refine_intensity` | Grid refinement strength from 0 to 1 | `0.3` |
+| `force` | Ignore an existing successful record | `false` |
+| `archive_source` | Move successes to `processed/` and failures to `failed/` | `true` |
+
+The tool only accepts relative paths inside `input/`. Outputs are still written to
+`output/` and `data/process_state.json`. The source is archived by default and
+is preserved only when `archive_source=false` is explicitly requested.
+
+Image processing runs serially in a dedicated worker process, so ordinary output
+from third-party code cannot corrupt the STDIO protocol. Cancelling a client wait
+does not guarantee that an image operation already in progress is terminated.
+
+### Configure globally in Codex
+
+The following steps register the server in the current user's global Codex
+configuration instead of limiting it to one project. User-level configuration
+lives in `~/.codex/config.toml`; see the
+[Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml)
+for the supported fields.
+
+1. Synchronize the virtual environment from the PixelReforge project root:
+
+   ```bash
+   uv sync --locked
+   ```
+
+2. Confirm that the MCP entry point is installed:
+
+   ```bash
+   test -x .venv/bin/pixel-reforge-mcp \
+     && echo "pixel-reforge-mcp is ready"
+   ```
+
+3. Replace `<project-root>` with the absolute PixelReforge project path and
+   register the STDIO MCP server:
+
+   ```bash
+   codex mcp add pixel_reforge \
+     --env PIXEL_REFORGE_ROOT="<project-root>" \
+     -- "<project-root>/.venv/bin/pixel-reforge-mcp"
+   ```
+
+   For example, if the project is at `/Users/example/pixelReforge`, replace both
+   `<project-root>` placeholders with `/Users/example/pixelReforge`. If a server
+   with this name already exists, do not add it again; edit the existing
+   `[mcp_servers.pixel_reforge]` entry in `~/.codex/config.toml`.
+
+4. To set a stable working directory, timeouts, and write approval behavior,
+   ensure the existing server entry in `~/.codex/config.toml` contains the
+   following values. Merge them into the table created in step 3 instead of
+   declaring a duplicate TOML table:
+
+   ```toml
+   [mcp_servers.pixel_reforge]
+   command = "<project-root>/.venv/bin/pixel-reforge-mcp"
+   cwd = "<project-root>"
+   enabled = true
+   startup_timeout_sec = 20
+   tool_timeout_sec = 300
+   enabled_tools = ["reforge_image"]
+   default_tools_approval_mode = "writes"
+
+   [mcp_servers.pixel_reforge.env]
+   PIXEL_REFORGE_ROOT = "<project-root>"
+   ```
+
+5. Verify the configuration Codex loads:
+
+   ```bash
+   codex mcp get pixel_reforge --json
+   codex mcp list
+   ```
+
+6. Restart Codex or open a new session so that it reloads the MCP connection and
+   tool schema. You can then ask:
+
+   ```text
+   Use pixel_reforge to process input/character.png with a scale of 8, then
+   report the absolute paths of both output files.
+   ```
+
+   The actual MCP `source_path` must be `character.png`, relative to `input/`,
+   rather than an absolute path. `archive_source` defaults to `true`, so a
+   successful source is moved to `processed/`; explicitly pass
+   `archive_source=false` to preserve it.
+
+### Workflow: generate and reforge pixel art
+
+After completing the global setup and restarting Codex, one prompt can connect
+image generation, MCP processing, and absolute-path reporting. Replace
+`<project-root>` with the absolute PixelReforge project path and change the
+subject as needed:
+
+```text
+Complete the following task directly. Do not only describe the steps:
+
+1. Generate a pixel-art image with the subject "a glowing mushroom cottage in
+   a forest at night."
+   Requirements:
+   - PNG format;
+   - 512×512 pixels;
+   - a clear, strictly aligned pixel grid;
+   - a limited palette and flat color blocks;
+   - no antialiasing, blur, gradients, or fine-grained textures;
+   - visually equivalent to a 32×32 logical pixel canvas with uniformly sized
+     logical pixels.
+
+2. Save the generated image as an actual local file at:
+   <project-root>/input/codex_generated_pixel_art.png
+
+3. After confirming that the file exists, call the reforge_image tool from the
+   pixel_reforge MCP Server. Do not call the pixel-reforge CLI and do not
+   simulate the processing result.
+
+   Use these MCP arguments:
+   {
+     "source_path": "codex_generated_pixel_art.png",
+     "scale": 8,
+     "sample_method": "center",
+     "refine_intensity": 0.3,
+     "force": true,
+     "archive_source": true
+   }
+
+   source_path is relative to input/, so do not pass
+   "input/codex_generated_pixel_art.png" or an absolute path.
+
+4. When the MCP call finishes, read the actual status, outputs, and error values.
+
+5. In the final response, clearly report:
+   - the processing status;
+   - the absolute path where the generated image was initially saved;
+   - the absolute path of the 1x reforged result;
+   - the absolute path of the 8x preview;
+   - whether the source was moved to processed/.
+
+Do not guess output paths from filename conventions. Use the outputs returned by
+the reforge_image tool. If processing fails, report the real error and do not
+claim success.
+```
+
+Codex should request approval to call the `reforge_image` write tool. Once
+approved, the successful source is moved to `processed/` by default, while both
+result files remain in `output/`.
+
+If image generation cannot continue to an MCP call in the same Codex turn, split
+the workflow into two turns. First generate and save the image:
+
+```text
+Generate strictly grid-aligned pixel art with no antialiasing and a limited
+palette. The subject is "a glowing mushroom cottage in a forest at night."
+
+Save the image as an actual local file at:
+<project-root>/input/codex_generated_pixel_art.png
+
+The result must be a local PNG file, not only an image displayed in the chat.
+```
+
+Then invoke the MCP tool in a second turn:
+
+```text
+Use the reforge_image tool from the pixel_reforge MCP Server to process the
+image generated in the previous turn.
+
+Use these arguments:
+{
+  "source_path": "codex_generated_pixel_art.png",
+  "scale": 8,
+  "sample_method": "center",
+  "refine_intensity": 0.3,
+  "force": true,
+  "archive_source": true
+}
+
+Do not call the CLI. Read the outputs returned by MCP and report the processing
+status and the absolute paths of the 1x result and 8x preview. Do not guess the
+paths; report the real error if processing fails.
+```

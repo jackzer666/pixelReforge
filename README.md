@@ -166,6 +166,7 @@ uv run pixel-reforge --force
 
 ```text
 pixel_reforge/             Python 源码包
+pixel_reforge/mcp_adapter/ MCP STDIO 适配层
 tests/                     自动化测试
 input/                     默认输入目录
 output/                    生成结果目录
@@ -226,3 +227,184 @@ uv sync
 
 - [perfect-pixel](https://github.com/theamusing/perfectPixel)：负责像素网格检测与规整化处理；
 - [OpenCV](https://opencv.org/)：负责图片读取、色彩空间转换、缩放和输出。
+
+## MCP Server
+
+项目提供本地 STDIO MCP 入口：
+
+```bash
+PIXEL_REFORGE_ROOT=/path/to/pixelReforge uv run pixel-reforge-mcp
+```
+
+MCP Server 只暴露一个写工具 `reforge_image`：
+
+| 参数 | 说明 | 默认值 |
+| --- | --- | --- |
+| `source_path` | 相对于项目 `input/` 的图片路径 | 必填 |
+| `scale` | 预览图放大倍数，最小值为 2 | `8` |
+| `sample_method` | `center` 或 `majority` | `center` |
+| `refine_intensity` | 网格修正强度，范围为 0 到 1 | `0.3` |
+| `force` | 是否忽略已有成功记录 | `false` |
+| `archive_source` | 成功时移入 `processed/`，失败时移入 `failed/` | `true` |
+
+工具只接受 `input/` 内的相对路径，输出继续写入 `output/` 和
+`data/process_state.json`。默认按处理结果归档原图；明确设置
+`archive_source=false` 时保留原图。
+
+图片处理在单独的工作进程中串行执行，第三方库的普通输出不会污染 STDIO
+协议。客户端取消等待不保证终止已经开始的图片处理。
+
+### 全局配置到 Codex
+
+以下配置会注册到当前用户的 Codex 全局配置，而不是仅对一个项目生效。
+Codex 的用户级配置文件位于 `~/.codex/config.toml`；可用字段参见
+[Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml)。
+
+1. 在 PixelReforge 项目根目录同步虚拟环境：
+
+   ```bash
+   uv sync --locked
+   ```
+
+2. 确认 MCP 命令已经安装：
+
+   ```bash
+   test -x .venv/bin/pixel-reforge-mcp \
+     && echo "pixel-reforge-mcp is ready"
+   ```
+
+3. 将 `<project-root>` 替换为 PixelReforge 项目根目录的绝对路径，然后注册
+   STDIO MCP Server：
+
+   ```bash
+   codex mcp add pixel_reforge \
+     --env PIXEL_REFORGE_ROOT="<project-root>" \
+     -- "<project-root>/.venv/bin/pixel-reforge-mcp"
+   ```
+
+   例如，项目位于 `/Users/example/pixelReforge` 时，两个
+   `<project-root>` 都替换为 `/Users/example/pixelReforge`。如果已经存在同名
+   Server，不要重复添加，直接编辑 `~/.codex/config.toml` 中已有的
+   `[mcp_servers.pixel_reforge]`。
+
+4. 如需固定工作目录、超时和写操作审批，在
+   `~/.codex/config.toml` 中确认该 Server 配置包含以下内容。不要重复创建同名
+   TOML 表，应与第 3 步生成的配置合并：
+
+   ```toml
+   [mcp_servers.pixel_reforge]
+   command = "<project-root>/.venv/bin/pixel-reforge-mcp"
+   cwd = "<project-root>"
+   enabled = true
+   startup_timeout_sec = 20
+   tool_timeout_sec = 300
+   enabled_tools = ["reforge_image"]
+   default_tools_approval_mode = "writes"
+
+   [mcp_servers.pixel_reforge.env]
+   PIXEL_REFORGE_ROOT = "<project-root>"
+   ```
+
+5. 检查 Codex 读取到的配置：
+
+   ```bash
+   codex mcp get pixel_reforge --json
+   codex mcp list
+   ```
+
+6. 重启 Codex 或新开会话，使 MCP 连接和工具 Schema 重新加载。之后可以要求：
+
+   ```text
+   使用 pixel_reforge 处理 input/character.png，放大倍数设为 8，
+   完成后告诉我两个输出文件的绝对路径。
+   ```
+
+   MCP 实际收到的 `source_path` 应为相对于 `input/` 的
+   `character.png`，不能传绝对路径。`archive_source` 默认为 `true`，所以原图
+   成功后会移动到 `processed/`；需要保留时应明确传入
+   `archive_source=false`。
+
+### 使用流程：生成并重铸像素图
+
+完成全局配置并重启 Codex 后，可以用一段提示词串联图片生成、MCP 处理和
+结果路径回传。将 `<project-root>` 替换为 PixelReforge 项目根目录的绝对路径，
+并按需修改图片主题：
+
+```text
+请直接完成下面的任务，不要只给我操作步骤：
+
+1. 生成一张像素图，主题为“夜晚森林中的发光蘑菇小屋”。
+   图片要求：
+   - PNG 格式；
+   - 512×512 像素；
+   - 清晰、严格对齐的像素网格；
+   - 使用有限色板和平涂色块；
+   - 不使用抗锯齿、模糊、渐变或细碎纹理；
+   - 视觉上接近 32×32 的逻辑像素画，每个逻辑像素大小一致。
+
+2. 将生成的图片实际保存到：
+   <project-root>/input/codex_generated_pixel_art.png
+
+3. 确认文件存在后，必须调用 pixel_reforge MCP Server 的 reforge_image
+   工具处理它。不要调用 pixel-reforge CLI，也不要自行模拟处理结果。
+
+   MCP 工具参数使用：
+   {
+     "source_path": "codex_generated_pixel_art.png",
+     "scale": 8,
+     "sample_method": "center",
+     "refine_intensity": 0.3,
+     "force": true,
+     "archive_source": true
+   }
+
+   source_path 是相对于 input/ 的路径，所以不要传
+   "input/codex_generated_pixel_art.png" 或绝对路径。
+
+4. 等 MCP 工具执行完成后，读取工具实际返回的 status、outputs 和 error。
+
+5. 最终明确告诉我：
+   - 处理状态；
+   - 生成图片最初保存的绝对路径；
+   - 1x 重铸结果的绝对路径；
+   - 8x 预览图的绝对路径；
+   - 原图是否已经移动到 processed/。
+
+不要根据文件命名规则猜测输出路径，必须使用 reforge_image 工具实际返回的
+outputs。若处理失败，请返回真实错误，不要声称已经成功。
+```
+
+执行过程中，Codex 应请求调用 `reforge_image` 写工具；确认审批后，默认会将
+成功原图移入 `processed/`，两个结果文件保留在 `output/`。
+
+如果当前 Codex 界面的图片生成功能无法在同一轮继续调用 MCP，可以拆成两轮。
+第一轮先生成并保存图片：
+
+```text
+生成一张严格网格对齐、无抗锯齿、有限色板的像素图，主题为
+“夜晚森林中的发光蘑菇小屋”。
+
+将图片实际保存为：
+<project-root>/input/codex_generated_pixel_art.png
+
+必须保存为本地 PNG 文件，不要只在对话中展示图片。
+```
+
+第二轮再调用 MCP：
+
+```text
+请使用 pixel_reforge MCP Server 的 reforge_image 工具处理刚才生成的图片。
+
+调用参数：
+{
+  "source_path": "codex_generated_pixel_art.png",
+  "scale": 8,
+  "sample_method": "center",
+  "refine_intensity": 0.3,
+  "force": true,
+  "archive_source": true
+}
+
+不要调用 CLI。完成后读取 MCP 实际返回的 outputs，告诉我处理状态、1x 输出和
+8x 预览图的绝对路径。不要自行推测路径；如果失败，返回真实错误。
+```

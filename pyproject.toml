@@ -9,11 +9,13 @@ description = "用于还原干净、网格对齐像素图的批处理流水线"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "mcp>=1.28.1,<2",
     "perfect-pixel[opencv]>=0.1.4",
 ]
 
 [project.scripts]
 pixel-reforge = "pixel_reforge.cli:main"
+pixel-reforge-mcp = "pixel_reforge.mcp_adapter.server:main"
 
 [tool.setuptools.packages.find]
 include = ["pixel_reforge*"]
