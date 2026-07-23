@@ -1,439 +1,85 @@
 # PixelReforge Pipeline
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![MCP](https://img.shields.io/badge/MCP-STDIO-6A5ACD.svg)](#mcp-server)
+[![MCP](https://img.shields.io/badge/MCP-STDIO-6A5ACD.svg)](docs/mcp.en.md)
 [![uv](https://img.shields.io/badge/package%20manager-uv-DE5FE9.svg)](https://docs.astral.sh/uv/)
 
 [简体中文](README.md) | [English](README.en.md)
 
-> **PixelReforge**  
-> A CLI and MCP batch pipeline for restoring clean, grid-aligned pixel art.
+> A CLI and MCP pipeline for refining and reconstructing AI-generated pixel art.
 
-PixelReforge is a pipeline for refining pixel art and organizing batch-processing results through both a command-line interface and a local STDIO MCP integration. Built on [perfect-pixel](https://github.com/theamusing/perfectPixel), it detects and reconstructs pixel grids, exposes the `reforge_image` tool to Codex and other MCP-compatible clients, and provides content-based deduplication, persistent state tracking, failure isolation, and source-file archiving.
+PixelReforge refines, reconstructs, and archives AI-generated pixel art. Built on [perfect-pixel](https://github.com/theamusing/perfectPixel), it detects and reconstructs logical pixel grids through both a command-line interface and a local STDIO MCP integration for Codex and other compatible clients.
+
+## Why PixelReforge
+
+An AI-generated image may look like pixel art while still containing:
+
+- Inconsistent logical pixel sizes or shifted grid boundaries;
+- Blurred edges and near-duplicate colors caused by antialiasing, interpolation, or compression;
+- Output dimensions that do not match the intended logical pixel grid;
+- Batch assets without consistent deduplication, state tracking, or archiving.
+
+PixelReforge can redetect the grid and resample each cell, producing a clean `1x` pixel image and a nearest-neighbor enlarged preview for further editing, review, and delivery.
 
 ## Features
 
-- Supports PNG, JPG, JPEG, WEBP, and BMP images;
-- Processes entire directories, individual files, or nested directory trees;
-- Provides a local STDIO MCP server whose `reforge_image` tool supports single-image processing and optional archiving from Codex and other compatible clients;
-- Produces both a native-resolution pixel image and a nearest-neighbor enlarged preview;
-- Identifies duplicate tasks from image content and processing parameters;
-- Archives successful and failed inputs separately without allowing one failure to interrupt the batch;
-- Persists processing state as JSON and prints clear progress and summary messages;
-- Uses a project-local virtual environment and lockfile for dependency isolation and reproducible setup.
-
-## Requirements
-
-- Python 3.10 or later;
-- [uv](https://docs.astral.sh/uv/);
-- macOS, Linux, or Windows.
+- Supports PNG, JPG, JPEG, WEBP, and BMP;
+- Processes individual images, directories, and nested directory trees;
+- Provides `detect` automatic grid detection and `source` native-pixel modes;
+- Produces both a `1x` pixel image and nearest-neighbor enlarged preview;
+- Deduplicates tasks by image content, algorithm version, and parameters;
+- Persists task state and archives successful and failed sources separately;
+- Exposes a local STDIO MCP server with the `reforge_image` tool.
 
 ## Quick Start
 
-### 1. Install the project dependencies
-
-From the project root, create the project environment from the lockfile:
+Requirements: Python 3.10+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
+# Install locked dependencies
 uv sync --locked
-```
 
-This command creates `.venv/` in the project root and installs the locked dependencies together with the current project. The environment belongs exclusively to this project and does not modify the global Python installation.
-
-You normally do not need to activate the virtual environment because subsequent commands can be run through `uv run`. To activate it manually, use the command for your platform:
-
-```bash
-# macOS / Linux
-source .venv/bin/activate
-
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-```
-
-### 2. Prepare the input images
-
-Place the images to be processed in the `input/` directory at the project root:
-
-```text
-input/
-├── character.png
-└── landscape.webp
-```
-
-Required runtime directories are created automatically if they do not already exist.
-
-### 3. Start batch processing
-
-```bash
+# Place images in input/, then start the batch
 uv run pixel-reforge
 ```
 
-PixelReforge scans `input/` for supported images and processes each file through grid detection, pixel-art reconstruction, state recording, and source archiving.
+Processing results:
 
-### 4. Review the results
+- `output/`: `1x` results and enlarged previews;
+- `processed/`: successful or previously processed sources;
+- `failed/`: failed sources;
+- `data/process_state.json`: persistent task state.
 
-- Generated images are written to `output/`;
-- Successfully processed or duplicate source files are moved to `processed/`;
-- Failed source files are moved to `failed/`;
-- Task state is stored in `data/process_state.json`.
+See the [CLI guide](docs/cli.en.md) for commands, options, and output conventions.
 
-## Usage
+## Pixel Modes
 
-### Process a specific directory
-
-```bash
-uv run pixel-reforge --input-dir ~/Pictures/pixel-input
-```
-
-### Process a single image
-
-```bash
-uv run pixel-reforge --file ~/Pictures/character.png
-```
-
-If the image is inside `input/` under the current working directory, it is archived according to the result. If it is outside `input/`, PixelReforge generates the output without moving the source file.
-
-### Select a custom output directory
-
-```bash
-uv run pixel-reforge \
-  --input-dir ~/Pictures/pixel-input \
-  --output-dir ~/Pictures/pixel-output
-```
-
-### Scan nested directories
-
-```bash
-uv run pixel-reforge --recursive
-```
-
-Recursive mode scans all subdirectories under the selected input directory. If that directory contains project-managed directories, PixelReforge automatically excludes `output/`, `processed/`, `failed/`, and `data/` to prevent generated files from being processed again.
-
-### Retry failed tasks
-
-```bash
-uv run pixel-reforge --retry-failed
-```
-
-This command reads images from `failed/`. Successfully retried files are moved to `processed/`, while files that fail again remain in `failed/`.
-
-### Force reprocessing
-
-```bash
-uv run pixel-reforge --force
-```
-
-The `--force` option ignores existing successful records and regenerates the outputs.
-
-## Command-Line Options
-
-| Option | Description | Default |
+| Mode | Behavior | Intended use |
 | --- | --- | --- |
-| `--file PATH` | Process one specific image | None |
-| `--input-dir PATH` | Process images from a specific directory | `input/` |
-| `--output-dir PATH` | Write generated images to a specific directory | `output/` |
-| `--retry-failed` | Retry images stored in `failed/` | Disabled |
-| `--scale INTEGER` | Set the preview scale factor; minimum value is 2 | `8` |
-| `--pixel-mode {detect,source}` | Detect the logical pixel grid or treat every input pixel as `1×1` | `detect` |
-| `--force` | Ignore existing successful records and process again | Disabled |
-| `--recursive` | Recursively scan input subdirectories | Disabled |
-| `-h`, `--help` | Display command help | — |
-
-`--file`, `--input-dir`, and `--retry-failed` are mutually exclusive input modes. Only one may be selected for each invocation.
-
-`--pixel-mode detect` uses `perfect-pixel` to detect and reconstruct the logical
-pixel grid. `--pixel-mode source` skips grid detection: the `1x` output has the
-same dimensions as the input, and each preview dimension is multiplied by
-`--scale`.
-
-## Processing Workflow
-
-Each image passes through the following steps:
-
-1. Read the image and calculate its SHA-256 content fingerprint;
-2. Combine the fingerprint, algorithm version, and processing parameters into a task identifier;
-3. Check whether a complete successful result already exists;
-4. Use `perfect-pixel` to detect the grid and reconstruct clean pixel art;
-5. Generate a native-resolution result and a nearest-neighbor enlarged preview;
-6. Atomically write the output files and JSON state record;
-7. Archive or isolate the source file according to the result.
-
-An existing result is reused only when the task identifier matches, its state is successful, and both output files still exist. A change to the processing parameters or core dependency version causes the same input image to be treated as a new task.
-
-## Output Files
-
-Each successfully processed image produces two PNG files:
-
-```text
-source_YYYYMMDD_HHMMSS_microseconds_1x.png
-source_YYYYMMDD_HHMMSS_microseconds_8x.png
-```
-
-- The `1x` file contains the reconstructed image at its native pixel-grid resolution;
-- The `8x` file is an eight-times enlarged preview by default; the actual factor is controlled by `--scale`;
-- If a filename collision occurs, a sequence number is appended automatically instead of overwriting an existing file;
-- Both outputs are first written to temporary files and published only after they have been generated successfully.
-
-## Project Layout
-
-```text
-pixel_reforge/             Python source package
-pixel_reforge/mcp_adapter/ MCP STDIO adapter
-tests/                     Automated tests
-input/                     Default input directory
-output/                    Generated output directory
-processed/                 Archive for successful or duplicate sources
-failed/                    Isolation directory for failed sources
-data/process_state.json    Persistent processing state
-pyproject.toml             Project metadata and direct dependencies
-uv.lock                    Complete dependency lockfile
-```
-
-The state file stores only source fingerprints, processing parameters, task states, error messages, and output paths. It does not contain image data.
-
-## Exit Status
-
-- The command exits with `0` when every task succeeds or matches an existing result;
-- The command exits with `1` when any image fails or the application encounters a fatal error.
-
-PixelReforge can therefore be integrated directly into shell scripts, scheduled jobs, and other automated pipelines.
-
-## Testing
-
-Run the complete test suite from the project root:
+| `detect` | Detect the logical grid and resample each cell | AI-generated, enlarged, slightly blurred, or irregular pixel art |
+| `source` | Treat every input pixel as one `1×1` logical pixel | Images already produced at native pixel dimensions |
 
 ```bash
-uv run python -m unittest discover -s tests -v
+uv run pixel-reforge --pixel-mode detect
+uv run pixel-reforge --pixel-mode source
 ```
 
-## Dependency Management
+## MCP Quick Entry
 
-Direct dependencies are declared in `pyproject.toml`. Exact resolved versions and file checksums are recorded in `uv.lock`. Commit `uv.lock` with project changes, but do not commit `.venv/` or `*.egg-info/`.
-
-Add a dependency:
-
-```bash
-uv add PACKAGE_NAME
-```
-
-Remove a dependency:
-
-```bash
-uv remove PACKAGE_NAME
-```
-
-Synchronize the environment strictly from the existing lockfile:
-
-```bash
-uv sync --locked
-```
-
-Upgrade dependencies and update the lockfile:
-
-```bash
-uv lock --upgrade
-uv sync
-```
-
-## Core Dependencies
-
-- [perfect-pixel](https://github.com/theamusing/perfectPixel): detects and refines pixel grids;
-- [OpenCV](https://opencv.org/): reads images, converts color spaces, scales results, and writes output files.
-
-## MCP Server
-
-The project provides a local STDIO MCP entry point:
+Start the local STDIO MCP server:
 
 ```bash
 PIXEL_REFORGE_ROOT=/path/to/pixelReforge uv run pixel-reforge-mcp
 ```
 
-The server exposes one write tool, `reforge_image`:
+The server exposes the `reforge_image` write tool, allowing Codex and other clients to process images in `input/` and receive actual task status and output paths.
 
-| Argument | Description | Default |
-| --- | --- | --- |
-| `source_path` | Image path relative to the project `input/` directory | Required |
-| `scale` | Preview scale factor; minimum value is 2 | `8` |
-| `pixel_mode` | `detect` the grid or treat each source pixel as `1×1` with `source` | `detect` |
-| `sample_method` | `center` or `majority` | `center` |
-| `refine_intensity` | Grid refinement strength from 0 to 1 | `0.3` |
-| `force` | Ignore an existing successful record | `false` |
-| `archive_source` | Move successes to `processed/` and failures to `failed/` | `true` |
+For complete arguments, global Codex configuration, and an AI-generation-to-reforging prompt, see the [MCP and Codex integration guide](docs/mcp.en.md).
 
-The tool only accepts relative paths inside `input/`. Outputs are still written to
-`output/` and `data/process_state.json`. The source is archived by default and
-is preserved only when `archive_source=false` is explicitly requested.
+## Documentation
 
-Image processing runs serially in a dedicated worker process, so ordinary output
-from third-party code cannot corrupt the STDIO protocol. Cancelling a client wait
-does not guarantee that an image operation already in progress is terminated.
-
-### Configure globally in Codex
-
-The following steps register the server in the current user's global Codex
-configuration instead of limiting it to one project. User-level configuration
-lives in `~/.codex/config.toml`; see the
-[Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml)
-for the supported fields.
-
-1. Synchronize the virtual environment from the PixelReforge project root:
-
-   ```bash
-   uv sync --locked
-   ```
-
-2. Confirm that the MCP entry point is installed:
-
-   ```bash
-   test -x .venv/bin/pixel-reforge-mcp \
-     && echo "pixel-reforge-mcp is ready"
-   ```
-
-3. Replace `<project-root>` with the absolute PixelReforge project path and
-   register the STDIO MCP server:
-
-   ```bash
-   codex mcp add pixel_reforge \
-     --env PIXEL_REFORGE_ROOT="<project-root>" \
-     -- "<project-root>/.venv/bin/pixel-reforge-mcp"
-   ```
-
-   For example, if the project is at `/Users/example/pixelReforge`, replace both
-   `<project-root>` placeholders with `/Users/example/pixelReforge`. If a server
-   with this name already exists, do not add it again; edit the existing
-   `[mcp_servers.pixel_reforge]` entry in `~/.codex/config.toml`.
-
-4. To set a stable working directory, timeouts, and write approval behavior,
-   ensure the existing server entry in `~/.codex/config.toml` contains the
-   following values. Merge them into the table created in step 3 instead of
-   declaring a duplicate TOML table:
-
-   ```toml
-   [mcp_servers.pixel_reforge]
-   command = "<project-root>/.venv/bin/pixel-reforge-mcp"
-   cwd = "<project-root>"
-   enabled = true
-   startup_timeout_sec = 20
-   tool_timeout_sec = 300
-   enabled_tools = ["reforge_image"]
-   default_tools_approval_mode = "writes"
-
-   [mcp_servers.pixel_reforge.env]
-   PIXEL_REFORGE_ROOT = "<project-root>"
-   ```
-
-5. Verify the configuration Codex loads:
-
-   ```bash
-   codex mcp get pixel_reforge --json
-   codex mcp list
-   ```
-
-6. Restart Codex or open a new session so that it reloads the MCP connection and
-   tool schema. You can then ask:
-
-   ```text
-   Use pixel_reforge to process input/character.png. You must call
-   reforge_image with pixel_mode set to detect and a scale of 8, then report
-   the absolute paths of both output files.
-   ```
-
-   The actual MCP `source_path` must be `character.png`, relative to `input/`,
-   rather than an absolute path. `archive_source` defaults to `true`, so a
-   successful source is moved to `processed/`; explicitly pass
-   `archive_source=false` to preserve it.
-
-### Workflow: generate and reforge pixel art
-
-After completing the global setup and restarting Codex, one prompt can connect
-image generation, MCP processing, and absolute-path reporting. Replace
-`<project-root>` with the absolute PixelReforge project path and change the
-subject as needed:
-
-```text
-Complete the following task directly. Do not only describe the steps:
-
-1. Generate a pixel-art image with the subject "a glowing mushroom cottage in
-   a forest at night."
-   Requirements:
-   - PNG format;
-   - 512×512 pixels;
-   - a clear, strictly aligned pixel grid;
-   - a limited palette and flat color blocks;
-   - no antialiasing, blur, gradients, or fine-grained textures;
-   - visually equivalent to a 32×32 logical pixel canvas with uniformly sized
-     logical pixels.
-
-2. Save the generated image as an actual local file at:
-   <project-root>/input/codex_generated_pixel_art.png
-
-3. After confirming that the file exists, call the reforge_image tool from the
-   pixel_reforge MCP Server. Do not call the pixel-reforge CLI and do not
-   simulate the processing result.
-
-   Use these MCP arguments:
-   {
-     "source_path": "codex_generated_pixel_art.png",
-     "scale": 8,
-     "pixel_mode": "detect",
-     "sample_method": "center",
-     "refine_intensity": 0.3,
-     "force": true,
-     "archive_source": true
-   }
-
-   source_path is relative to input/, so do not pass
-   "input/codex_generated_pixel_art.png" or an absolute path.
-
-4. When the MCP call finishes, read the actual status, outputs, and error values.
-
-5. In the final response, clearly report:
-   - the processing status;
-   - the absolute path where the generated image was initially saved;
-   - the absolute path of the 1x reforged result;
-   - the absolute path of the 8x preview;
-   - whether the source was moved to processed/.
-
-Do not guess output paths from filename conventions. Use the outputs returned by
-the reforge_image tool. If processing fails, report the real error and do not
-claim success.
-```
-
-Codex should request approval to call the `reforge_image` write tool. Once
-approved, the successful source is moved to `processed/` by default, while both
-result files remain in `output/`.
-
-If image generation cannot continue to an MCP call in the same Codex turn, split
-the workflow into two turns. First generate and save the image:
-
-```text
-Generate strictly grid-aligned pixel art with no antialiasing and a limited
-palette. The subject is "a glowing mushroom cottage in a forest at night."
-
-Save the image as an actual local file at:
-<project-root>/input/codex_generated_pixel_art.png
-
-The result must be a local PNG file, not only an image displayed in the chat.
-```
-
-Then invoke the MCP tool in a second turn:
-
-```text
-Use the reforge_image tool from the pixel_reforge MCP Server to process the
-image generated in the previous turn.
-
-Use these arguments:
-{
-  "source_path": "codex_generated_pixel_art.png",
-  "scale": 8,
-  "pixel_mode": "detect",
-  "sample_method": "center",
-  "refine_intensity": 0.3,
-  "force": true,
-  "archive_source": true
-}
-
-Do not call the CLI. Read the outputs returned by MCP and report the processing
-status and the absolute paths of the 1x result and 8x preview. Do not guess the
-paths; report the real error if processing fails.
-```
+| Document | Contents |
+| --- | --- |
+| [CLI guide](docs/cli.en.md) | Installation, common commands, complete options, processing, and outputs |
+| [MCP and Codex integration](docs/mcp.en.md) | MCP tool arguments, Codex configuration, and invocation examples |
+| [Development guide](docs/development.en.md) | Project layout, testing, and dependency management |
